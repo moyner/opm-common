@@ -201,94 +201,6 @@ public:
         solve<MaterialLaw>(fluid_state, matParams, globalMolarities, tolerance);
     }
 
-
-protected:
-
-    template <class FlashFluidState>
-    static typename FlashFluidState::Scalar wilsonK_(const FlashFluidState& fluid_state, int compIdx)
-    {
-        const auto& acf = FluidSystem::acentricFactor(compIdx);
-        const auto& T_crit = FluidSystem::criticalTemperature(compIdx);
-        const auto& T = fluid_state.temperature(0);
-        const auto& p_crit = FluidSystem::criticalPressure(compIdx);
-        const auto& p = fluid_state.pressure(0); //for now assume no capillary pressure
-
-        const auto& tmp = Opm::exp(5.3727 * (1+acf) * (1-T_crit/T)) * (p_crit/p);
-        return tmp;
-    }
-
-    template <class Vector, class FlashFluidState>
-    static typename Vector::field_type li_single_phase_label_(const FlashFluidState& fluid_state, const Vector& z, int verbosity)
-    {
-        // Calculate intermediate sum
-        typename Vector::field_type sumVz = 0.0;
-        for (int compIdx=0; compIdx<numComponents; ++compIdx){
-            // Get component information
-            const auto& V_crit = FluidSystem::criticalVolume(compIdx);
-
-            // Sum calculation
-            sumVz += (V_crit * z[compIdx]);
-        }
-
-        // Calculate approximate (pseudo) critical temperature using Li's method
-        typename Vector::field_type Tc_est = 0.0;
-        for (int compIdx=0; compIdx<numComponents; ++compIdx){
-            // Get component information
-            const auto& V_crit = FluidSystem::criticalVolume(compIdx);
-            const auto& T_crit = FluidSystem::criticalTemperature(compIdx);
-
-            // Sum calculation
-            Tc_est += (V_crit * T_crit * z[compIdx] / sumVz);
-        }
-
-        // Get temperature
-        const auto& T = fluid_state.temperature(0);
-
-        // If temperature is below estimated critical temperature --> phase = liquid; else vapor
-        typename Vector::field_type L;
-        if (T < Tc_est) {
-            // Liquid
-            L = 1.0;
-
-            // Print
-            if (verbosity >= 1) {
-                std::cout << "Cell is single-phase, liquid (L = 1.0) due to Li's phase labeling method giving T < Tc_est (" << T << " < " << Tc_est << ")!" << std::endl;
-            }
-        }
-        else {
-            // Vapor
-            L = 0.0;
-
-            // Print
-            if (verbosity >= 1) {
-                std::cout << "Cell is single-phase, vapor (L = 0.0) due to Li's phase labeling method giving T >= Tc_est (" << T << " >= " << Tc_est << ")!" << std::endl;
-            }
-        }
-
-
-        return L;
-    }
-
-    template <class Vector>
-    static typename Vector::field_type rachfordRice_g_(const Vector& K, typename Vector::field_type L, const Vector& z)
-    {
-        typename Vector::field_type g=0;
-        for (int compIdx=0; compIdx<numComponents; ++compIdx){
-            g += (z[compIdx]*(K[compIdx]-1))/(K[compIdx]-L*(K[compIdx]-1));
-        }
-        return g;
-    }
-
-    template <class Vector>
-    static typename Vector::field_type rachfordRice_dg_dL_(const Vector& K, const typename Vector::field_type L, const Vector& z)
-    {
-        typename Vector::field_type dg=0;
-        for (int compIdx=0; compIdx<numComponents; ++compIdx){
-            dg += (z[compIdx]*(K[compIdx]-1)*(K[compIdx]-1))/((K[compIdx]-L*(K[compIdx]-1))*(K[compIdx]-L*(K[compIdx]-1)));
-        }
-        return dg;
-    }
-
     template <class Vector>
     static typename Vector::field_type solveRachfordRice_g_(const Vector& K, const Vector& z, int verbosity)
     {
@@ -501,6 +413,93 @@ protected:
             }
         }
         throw std::runtime_error(" Rachford-Rice with bisection failed with " + std::to_string(max_it) + " iterations!");
+    }
+
+protected:
+
+    template <class FlashFluidState>
+    static typename FlashFluidState::Scalar wilsonK_(const FlashFluidState& fluid_state, int compIdx)
+    {
+        const auto& acf = FluidSystem::acentricFactor(compIdx);
+        const auto& T_crit = FluidSystem::criticalTemperature(compIdx);
+        const auto& T = fluid_state.temperature(0);
+        const auto& p_crit = FluidSystem::criticalPressure(compIdx);
+        const auto& p = fluid_state.pressure(0); //for now assume no capillary pressure
+
+        const auto& tmp = Opm::exp(5.3727 * (1+acf) * (1-T_crit/T)) * (p_crit/p);
+        return tmp;
+    }
+
+    template <class Vector, class FlashFluidState>
+    static typename Vector::field_type li_single_phase_label_(const FlashFluidState& fluid_state, const Vector& z, int verbosity)
+    {
+        // Calculate intermediate sum
+        typename Vector::field_type sumVz = 0.0;
+        for (int compIdx=0; compIdx<numComponents; ++compIdx){
+            // Get component information
+            const auto& V_crit = FluidSystem::criticalVolume(compIdx);
+
+            // Sum calculation
+            sumVz += (V_crit * z[compIdx]);
+        }
+
+        // Calculate approximate (pseudo) critical temperature using Li's method
+        typename Vector::field_type Tc_est = 0.0;
+        for (int compIdx=0; compIdx<numComponents; ++compIdx){
+            // Get component information
+            const auto& V_crit = FluidSystem::criticalVolume(compIdx);
+            const auto& T_crit = FluidSystem::criticalTemperature(compIdx);
+
+            // Sum calculation
+            Tc_est += (V_crit * T_crit * z[compIdx] / sumVz);
+        }
+
+        // Get temperature
+        const auto& T = fluid_state.temperature(0);
+
+        // If temperature is below estimated critical temperature --> phase = liquid; else vapor
+        typename Vector::field_type L;
+        if (T < Tc_est) {
+            // Liquid
+            L = 1.0;
+
+            // Print
+            if (verbosity >= 1) {
+                std::cout << "Cell is single-phase, liquid (L = 1.0) due to Li's phase labeling method giving T < Tc_est (" << T << " < " << Tc_est << ")!" << std::endl;
+            }
+        }
+        else {
+            // Vapor
+            L = 0.0;
+
+            // Print
+            if (verbosity >= 1) {
+                std::cout << "Cell is single-phase, vapor (L = 0.0) due to Li's phase labeling method giving T >= Tc_est (" << T << " >= " << Tc_est << ")!" << std::endl;
+            }
+        }
+
+
+        return L;
+    }
+
+    template <class Vector>
+    static typename Vector::field_type rachfordRice_g_(const Vector& K, typename Vector::field_type L, const Vector& z)
+    {
+        typename Vector::field_type g=0;
+        for (int compIdx=0; compIdx<numComponents; ++compIdx){
+            g += (z[compIdx]*(K[compIdx]-1))/(K[compIdx]-L*(K[compIdx]-1));
+        }
+        return g;
+    }
+
+    template <class Vector>
+    static typename Vector::field_type rachfordRice_dg_dL_(const Vector& K, const typename Vector::field_type L, const Vector& z)
+    {
+        typename Vector::field_type dg=0;
+        for (int compIdx=0; compIdx<numComponents; ++compIdx){
+            dg += (z[compIdx]*(K[compIdx]-1)*(K[compIdx]-1))/((K[compIdx]-L*(K[compIdx]-1))*(K[compIdx]-L*(K[compIdx]-1)));
+        }
+        return dg;
     }
 
     template <class FlashFluidState, class ComponentVector>
