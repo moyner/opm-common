@@ -211,11 +211,14 @@ public:
             typename Vector::field_type Kmin = K[0];
             typename Vector::field_type Kmax = K[0];
             for (int compIdx=1; compIdx<numComponents; ++compIdx){
-                if (K[compIdx] < Kmin)
-                    Kmin = K[compIdx];
-                else if (K[compIdx] >= Kmax)
-                    Kmax = K[compIdx];
+                auto Kc = K[compIdx];
+                std::cout << "compIdx=" <<compIdx << " K = " << Kc << std::endl;
+                if (Kc < Kmin)
+                    Kmin = Kc;
+                else if (Kc >= Kmax)
+                    Kmax = Kc;
             }
+            std::cout << "Kmax = " << Kmax << " Kmin = " << Kmin << std::endl;
             // Lower and upper bound for solution
             auto Vmin = 1/(1 - Kmax);
             auto Vmax = 1/(1 - Kmin);
@@ -223,7 +226,7 @@ public:
             auto V = (Vmin + Vmax)/2;
             // Print initial guess and header
             if (verbosity == 3 || verbosity == 4) {
-                std::cout << "Initial guess: V = " << V << " and [Vmin, Vmax] = [" << Vmin << ", " << Vmax << "]" << std::endl;
+                std::cout << "Initial guess " << numComponents << "c : V = " << V << " and [Vmin, Vmax] = [" << Vmin << ", " << Vmax << "]" << std::endl;
                 std::cout << std::setw(10) << "Iteration" << std::setw(16) << "abs(step)" << std::setw(16) << "V" << std::endl;
             }
             // Newton-Raphson loop
@@ -249,7 +252,7 @@ public:
                     {
                         // Print info
                         if (verbosity == 3 || verbosity == 4) {
-                            std::cout << "V is not within the the range [Vmin, Vmax], solve using Bisection method!" << std::endl;
+                            std::cout << "V = " << V << " is not within the the range [Vmin, Vmax], solve using Bisection method!" << std::endl;
                         }
 
                         // Run bisection

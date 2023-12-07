@@ -40,6 +40,7 @@
 
 #include <opm/material/constraintsolvers/PTFlash.hpp>
 #include <opm/material/fluidsystems/Co2BrineFluidSystem.hh>
+#include <opm/material/fluidsystems/ThreeComponentFluidSystem.hh>
 
 #include <opm/material/densead/Evaluation.hpp>
 #include <opm/material/constraintsolvers/ComputeFromReferencePhase.hpp>
@@ -51,6 +52,7 @@
 // It is a two component system
 using Scalar = double;
 using FluidSystem = Opm::Co2BrineFluidSystem<Scalar>;
+using ThreeComponentSystem = Opm::ThreeComponentFluidSystem<Scalar>;
 
 constexpr auto numComponents = FluidSystem::numComponents;
 using Evaluation = Opm::DenseAd::Evaluation<double, numComponents>;
@@ -294,14 +296,14 @@ for (const auto& sample : test_methods) {
 
 BOOST_AUTO_TEST_CASE(RachfordRice) {
     using NumVector = Dune::FieldVector<double, numComponents>;
-    using Flash = Opm::PTFlash<double, FluidSystem>;
+    // TODO: Should not really need flash for this part.
+    using Flash = Opm::PTFlash<double, ThreeComponentSystem>;
 
     // Scalar temp = 273.15;
     // Scalar p = 150000.0;
 
     // ComponentVector z;
     // z[0] = 0.2; z[1] = 0.5; z[2] = 0.3;
-
     auto K_values = std::vector<std::vector<double>>();
     auto z_values = std::vector<std::vector<double>>();
     auto vapor_reference = std::vector<double>();
@@ -311,17 +313,23 @@ BOOST_AUTO_TEST_CASE(RachfordRice) {
     vapor_reference.push_back(0.5269214180997791);
 
     for(unsigned int i = 0; i < K_values.size(); i++){
-        NumVector K = {K_values[i][0], K_values[i][1], K_values[i][2]};
-        NumVector z = {z_values[i][0], z_values[i][1], z_values[i][2]};
+        auto z_i = z_values[i];
+        auto K_i = K_values[i];
+        std::cout << "Perform RR test " << i << " of " << K_values.size() << std::endl
+                  << "z = " << z_i[0] << ", "  << z_i[1]  << ", " << z_i[2] << std::endl
+                  << "K = " << K_i[0] << ", "  << K_i[1]  << ", " << K_i[2] << std::endl;
 
-        auto L = Flash::solveRachfordRice_g_(K, z, 1);
-        auto V = 1.0 - L;
-        auto V_ref = vapor_reference[i];
 
-        BOOST_CHECK_MESSAGE(Opm::MathToolbox<Evaluation>::isSame(V, V_ref, 2e-3),
+        NumVector K = {K_i[0], K_i[1], K_i[2]};
+        NumVector z = {z_i[0], z_i[1], z_i[2]};
+
+        auto L = Flash::solveRachfordRice_g_(K, z, 3);
+        auto L_ref = 1.0 - vapor_reference[i];
+
+        BOOST_CHECK_MESSAGE(Opm::MathToolbox<Evaluation>::isSame(L, L_ref, 2e-3),
                             "Test sol #" + std::to_string(i+1) +
-                            " Computed vapor fraction " + std::to_string(V) +
-                            " does not match reference " + std::to_string(V_ref)
+                            " Computed vapor fraction " + std::to_string(L) +
+                            " does not match reference " + std::to_string(L_ref)
         );
     }
 
