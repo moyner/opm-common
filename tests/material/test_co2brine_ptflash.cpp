@@ -291,3 +291,23 @@ for (const auto& sample : test_methods) {
 }
 #endif
 }
+
+BOOST_AUTO_TEST_CASE(RachfordRice) {
+    using NumVector = Dune::FieldVector<double, numComponents>;
+
+    // Scalar temp = 273.15;
+    // Scalar p = 150000.0;
+
+    // ComponentVector z;
+    // z[0] = 0.2; z[1] = 0.5; z[2] = 0.3;
+
+    NumVector K = {1.7176562249206835, 2.3413966156487644, 0.11537246148979083};
+    NumVector z = {0.2, 0.5, 0.3};
+    using Flash = Opm::PTFlash<double, FluidSystem>;
+    auto L = Flash::solveRachfordRice_g_(K, z, 1);
+    auto V = 1.0 - L;
+    auto V_ref = 0.5269214180997791;
+
+    BOOST_CHECK_MESSAGE(Opm::MathToolbox<Evaluation>::isSame(V, V_ref, 2e-3),
+                            "Computed vapor fraction " + std::to_string(V) + "  does not match reference " + std::to_string(V_ref));
+}
