@@ -258,20 +258,12 @@ public:
                         // Run bisection
                         auto Lmin = 1 - Vmax;
                         auto Lmax = 1 - Vmin;
-                        Lmin = 0;
-                        Lmax = 1;
-                        // std::cout << "Bisection: V = " << V << " bounds for L: [" << Lmin << ", " << Lmax << "]" <<  std::endl;
-
                         auto L = bisection_g_(K, Lmin, Lmax, z, verbosity);
-
-                        // Ensure that L is in the range (0, 1)
-                        // L = Opm::min(Opm::max(L, 0.0), 1.0);
 
                         // Print final result
                         if (verbosity >= 1) {
                             std::cout << "Rachford-Rice (Bisection) converged to final solution L = " << L << std::endl;
                         }
-                        // std::cout << "Rachford-Rice (Bisection) converged to final solution L = " << L << std::endl;
                         return L;
                     }
 
@@ -368,7 +360,6 @@ public:
                     if (verbosity >= 1) {
                         std::cout << "Rachford-Rice converged to final solution L = " << L << std::endl;
                     }
-                    std::cout << "Rachford-Rice (Bisection) converged to final solution L = " << L << std::endl;
                     return L;
                 }
             }
