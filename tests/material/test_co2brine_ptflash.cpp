@@ -326,7 +326,7 @@ BOOST_AUTO_TEST_CASE(RachfordRice) {
         auto L = Flash::solveRachfordRice_g_(K, z, 3);
         auto L_ref = 1.0 - vapor_reference[i];
 
-        BOOST_CHECK_MESSAGE(Opm::MathToolbox<Evaluation>::isSame(L, L_ref, 2e-3),
+        BOOST_CHECK_MESSAGE(Opm::MathToolbox<Evaluation>::isSame(L, L_ref, 1e-5),
                             "Test sol #" + std::to_string(i+1) +
                             " Computed vapor fraction " + std::to_string(L) +
                             " does not match reference " + std::to_string(L_ref)
