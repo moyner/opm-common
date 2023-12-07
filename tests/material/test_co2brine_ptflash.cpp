@@ -294,6 +294,7 @@ for (const auto& sample : test_methods) {
 
 BOOST_AUTO_TEST_CASE(RachfordRice) {
     using NumVector = Dune::FieldVector<double, numComponents>;
+    using Flash = Opm::PTFlash<double, FluidSystem>;
 
     // Scalar temp = 273.15;
     // Scalar p = 150000.0;
@@ -301,13 +302,41 @@ BOOST_AUTO_TEST_CASE(RachfordRice) {
     // ComponentVector z;
     // z[0] = 0.2; z[1] = 0.5; z[2] = 0.3;
 
-    NumVector K = {1.7176562249206835, 2.3413966156487644, 0.11537246148979083};
+    auto K_values = std::vector<std::vector<double>>();
+    auto z_values = std::vector<std::vector<double>>();
+    auto vapor_reference = std::vector<double>();
+
+    K_values.push_back({1.7176562249206835, 2.3413966156487644, 0.11537246148979083});
+    z_values.push_back({0.2, 0.5, 0.3});
+    vapor_reference.push_back(0.5269214180997791);
+
+    for(unsigned int i = 0; i < K_values.size(); i++){
+        NumVector K = {K_values[i][0], K_values[i][1], K_values[i][2]};
+        NumVector z = {z_values[i][0], z_values[i][1], z_values[i][2]};
+
+        auto L = Flash::solveRachfordRice_g_(K, z, 1);
+        auto V = 1.0 - L;
+        auto V_ref = vapor_reference[i];
+
+        BOOST_CHECK_MESSAGE(Opm::MathToolbox<Evaluation>::isSame(V, V_ref, 2e-3),
+                            "Test sol #" + std::to_string(i+1) +
+                            " Computed vapor fraction " + std::to_string(V) +
+                            " does not match reference " + std::to_string(V_ref)
+        );
+    }
+
+    /*
+    NumVector K(1.7176562249206835, 2.3413966156487644, 0.11537246148979083);
+
     NumVector z = {0.2, 0.5, 0.3};
     using Flash = Opm::PTFlash<double, FluidSystem>;
-    auto L = Flash::solveRachfordRice_g_(K, z, 1);
-    auto V = 1.0 - L;
     auto V_ref = 0.5269214180997791;
 
-    BOOST_CHECK_MESSAGE(Opm::MathToolbox<Evaluation>::isSame(V, V_ref, 2e-3),
+   for(unsigned int i = 0; i < K_values.size(); i++){
+        auto L = Flash::solveRachfordRice_g_(K, z, 1);
+        auto V = 1.0 - L;
+        BOOST_CHECK_MESSAGE(Opm::MathToolbox<Evaluation>::isSame(V, V_ref, 2e-3),
                             "Computed vapor fraction " + std::to_string(V) + "  does not match reference " + std::to_string(V_ref));
+    }
+    */
 }
