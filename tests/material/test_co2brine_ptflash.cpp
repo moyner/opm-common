@@ -295,7 +295,7 @@ for (const auto& sample : test_methods) {
 }
 
 BOOST_AUTO_TEST_CASE(RachfordRice) {
-    using NumVector = Dune::FieldVector<double, numComponents>;
+    using NumVector = Dune::FieldVector<double, 3>;
     // TODO: Should not really need flash for this part.
     using Flash = Opm::PTFlash<double, ThreeComponentSystem>;
 
