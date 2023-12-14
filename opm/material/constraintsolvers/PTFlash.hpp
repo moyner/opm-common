@@ -206,168 +206,87 @@ public:
     {
         // Find min and max K. Have to do a laborious for loop to avoid water component (where K=0)
         // TODO: Replace loop with Dune::min_value() and Dune::max_value() when water component is properly handled
-        if(true){
-            auto tol = 1e-12;
-            typename Vector::field_type Kmin = K[0];
-            typename Vector::field_type Kmax = K[0];
-            for (int compIdx=1; compIdx<numComponents; ++compIdx){
-                auto Kc = K[compIdx];
-                // std::cout << "compIdx=" <<compIdx << " K = " << Kc << std::endl;
-                if (Kc < Kmin)
-                    Kmin = Kc;
-                else if (Kc >= Kmax)
-                    Kmax = Kc;
+        auto tol = 1e-12;
+        int itmax = 10000;
+        typename Vector::field_type Kmin = K[0];
+        typename Vector::field_type Kmax = K[0];
+        for (int compIdx=1; compIdx<numComponents; ++compIdx){
+            auto Kc = K[compIdx];
+            // std::cout << "compIdx=" <<compIdx << " K = " << Kc << std::endl;
+            if (Kc < Kmin)
+                Kmin = Kc;
+            else if (Kc >= Kmax)
+                Kmax = Kc;
+        }
+        // std::cout << "Kmax = " << Kmax << " Kmin = " << Kmin << std::endl;
+        // Lower and upper bound for solution
+        auto Vmin = 1/(1 - Kmax);
+        auto Vmax = 1/(1 - Kmin);
+        // Initial guess
+        auto V = (Vmin + Vmax)/2;
+        // Print initial guess and header
+        if (verbosity == 3 || verbosity == 4) {
+            std::cout << "Initial guess " << numComponents << "c : V = " << V << " and [Vmin, Vmax] = [" << Vmin << ", " << Vmax << "]" << std::endl;
+            std::cout << std::setw(10) << "Iteration" << std::setw(16) << "abs(step)" << std::setw(16) << "V" << std::endl;
+        }
+        // Newton-Raphson loop
+        for (int iteration=1; iteration<itmax; ++iteration){
+            // Calculate function and derivative values
+            auto denum = 0.0;
+            auto r = 0.0;
+            for (int compIdx=0; compIdx<numComponents; ++compIdx){
+                auto dK = K[compIdx]-1.0;
+                auto a = z[compIdx]*dK;
+                auto b = (1 + V*dK);
+                r += a/b;
+                denum += z[compIdx]*(dK*dK)/(b*b);
             }
-            // std::cout << "Kmax = " << Kmax << " Kmin = " << Kmin << std::endl;
-            // Lower and upper bound for solution
-            auto Vmin = 1/(1 - Kmax);
-            auto Vmax = 1/(1 - Kmin);
-            // Initial guess
-            auto V = (Vmin + Vmax)/2;
-            // Print initial guess and header
-            if (verbosity == 3 || verbosity == 4) {
-                std::cout << "Initial guess " << numComponents << "c : V = " << V << " and [Vmin, Vmax] = [" << Vmin << ", " << Vmax << "]" << std::endl;
-                std::cout << std::setw(10) << "Iteration" << std::setw(16) << "abs(step)" << std::setw(16) << "V" << std::endl;
-            }
-            // Newton-Raphson loop
-            int itmax = 10000;
-            for (int iteration=1; iteration<itmax; ++iteration){
-                // Calculate function and derivative values
-                auto denum = 0.0;
-                auto r = 0.0;
-                for (int compIdx=0; compIdx<numComponents; ++compIdx){
-                    auto dK = K[compIdx]-1.0;
-                    auto a = z[compIdx]*dK;
-                    auto b = (1 + V*dK);
-                    r += a/b;
-                    denum += z[compIdx]*(dK*dK)/(b*b);
-                }
-                auto delta = r/denum;
-                // std::cout << iteration << ": V = " << V << "delta V = " << delta;
+            auto delta = r/denum;
+            V += delta;
 
-                V += delta;
-                // std::cout << "V after = " << V << " bounds: [" << Vmin << ", " << Vmax << "]" << "K = " << K << std::endl;
-
-                // Check if V is within the bounds, and if not, we apply bisection method
-                if (V < Vmin || V > Vmax)
-                    {
-                        // Print info
-                        if (verbosity == 3 || verbosity == 4) {
-                            std::cout << "V = " << V << " is not within the the range [Vmin, Vmax], solve using Bisection method!" << std::endl;
-                        }
-
-                        // Run bisection
-                        auto Lmin = 1 - Vmax;
-                        auto Lmax = 1 - Vmin;
-                        Lmax = 1.0;
-                        Lmin = 0.0;
-                        // std::cout << "V_min = " << Vmin << ", V_max = " << Vmax << std::endl;
-                        auto L = bisection_g_(K, Lmin, Lmax, z, verbosity);
-
-                        // Print final result
-                        if (verbosity >= 1) {
-                            std::cout << "Rachford-Rice (Bisection) converged to final solution L = " << L << std::endl;
-                        }
-                        return L;
+            // Check if V is within the bounds, and if not, we apply bisection method
+            if (V < Vmin || V > Vmax)
+                {
+                    // Print info
+                    if (verbosity == 3 || verbosity == 4) {
+                        std::cout << "V = " << V << " is not within the the range [Vmin, Vmax], solve using Bisection method!" << std::endl;
                     }
 
-                // Print iteration info
-                if (verbosity == 3 || verbosity == 4) {
-                    std::cout << std::setw(10) << iteration << std::setw(16) << Opm::abs(delta) << std::setw(16) << V << std::endl;
-                }
-                // Check for convergence
-                if ( Opm::abs(r) < tol || iteration == itmax) {
-                    // Ensure that L is in the range (0, 1)
-                    // L = Opm::min(Opm::max(L, 0.0), 1.0);
-                    auto L = 1 - V;
+                    // Run bisection
+                    auto Lmin = 1 - Vmax;
+                    auto Lmax = 1 - Vmin;
+                    // TODO: This is required for some cases. Not clear why
+                    // since the objective function should be monotone with a
+                    // single zero between the Lmin/Lmax interval defined by
+                    // K-values.
+                    Lmax = 1.0;
+                    Lmin = 0.0;
+                    auto L = bisection_g_(K, Lmin, Lmax, z, verbosity);
 
                     // Print final result
                     if (verbosity >= 1) {
-                        std::cout << "Rachford-Rice converged to final solution L = " << L << std::endl;
+                        std::cout << "Rachford-Rice (Bisection) converged to final solution L = " << L << std::endl;
                     }
                     return L;
                 }
-            }
 
-        }else{
-            typename Vector::field_type Kmin = K[0];
-            typename Vector::field_type Kmax = K[0];
-            for (int compIdx=1; compIdx<numComponents; ++compIdx){
-                if (K[compIdx] < Kmin)
-                    Kmin = K[compIdx];
-                else if (K[compIdx] >= Kmax)
-                    Kmax = K[compIdx];
-            }
-
-            // Lower and upper bound for solution
-            auto Lmin = (Kmin / (Kmin - 1));
-            auto Lmax = Kmax / (Kmax - 1);
-
-            // Check if Lmin < Lmax, and switch if not
-            if (Lmin > Lmax)
-            {
-                auto Ltmp = Lmin;
-                Lmin = Lmax;
-                Lmax = Ltmp;
-            }
-
-            // Initial guess
-            auto L = (Lmin + Lmax)/2;
-
-            // Print initial guess and header
+            // Print iteration info
             if (verbosity == 3 || verbosity == 4) {
-                std::cout << "Initial guess: L = " << L << " and [Lmin, Lmax] = [" << Lmin << ", " << Lmax << "]" << std::endl;
-                std::cout << std::setw(10) << "Iteration" << std::setw(16) << "abs(step)" << std::setw(16) << "L" << std::endl;
+                std::cout << std::setw(10) << iteration << std::setw(16) << Opm::abs(delta) << std::setw(16) << V << std::endl;
             }
+            // Check for convergence
+            if ( Opm::abs(r) < tol || iteration == itmax) {
+                // Ensure that L is in the range (0, 1)
+                auto L = 1 - V;
 
-            // Newton-Raphson loop
-            for (int iteration=1; iteration<100; ++iteration){
-                // Calculate function and derivative values
-                auto g = rachfordRice_g_(K, L, z);
-                auto dg_dL = rachfordRice_dg_dL_(K, L, z);
-
-                // Lnew = Lold - g/dg;
-                auto delta = g/dg_dL;
-                L -= delta;
-
-                // Check if L is within the bounds, and if not, we apply bisection method
-                if (L < Lmin || L > Lmax)
-                    {
-                        // Print info
-                        if (verbosity == 3 || verbosity == 4) {
-                            std::cout << "L is not within the the range [Lmin, Lmax], solve using Bisection method!" << std::endl;
-                        }
-
-                        // Run bisection
-                        L = bisection_g_(K, Lmin, Lmax, z, verbosity);
-
-                        // Ensure that L is in the range (0, 1)
-                        L = Opm::min(Opm::max(L, 0.0), 1.0);
-
-                        // Print final result
-                        if (verbosity >= 1) {
-                            std::cout << "Rachford-Rice (Bisection) converged to final solution L = " << L << std::endl;
-                        }
-                        return L;
-                    }
-
-                // Print iteration info
-                if (verbosity == 3 || verbosity == 4) {
-                    std::cout << std::setw(10) << iteration << std::setw(16) << Opm::abs(delta) << std::setw(16) << L << std::endl;
+                // Print final result
+                if (verbosity >= 1) {
+                    std::cout << "Rachford-Rice converged to final solution L = " << L << std::endl;
                 }
-                // Check for convergence
-                if ( Opm::abs(delta) < 1e-10 ) {
-                    // Ensure that L is in the range (0, 1)
-                    L = Opm::min(Opm::max(L, 0.0), 1.0);
-
-                    // Print final result
-                    if (verbosity >= 1) {
-                        std::cout << "Rachford-Rice converged to final solution L = " << L << std::endl;
-                    }
-                    return L;
-                }
+                return L;
             }
         }
+
         // Throw error if Rachford-Rice fails
         throw std::runtime_error(" Rachford-Rice did not converge within maximum number of iterations" );
     }
