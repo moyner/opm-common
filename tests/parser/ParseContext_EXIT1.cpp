@@ -8,10 +8,12 @@
 
 #include <stdlib.h>
 
+#ifndef _WIN32
 #include <sys/types.h>
 #include <sys/wait.h>
 
 #include <unistd.h>
+#endif
 
 namespace {
 
@@ -36,6 +38,7 @@ void exit1(Opm::InputErrorAction action)
 // which will unconditionally fail the complete test in the face of an exit(1) -
 // this test is implemented without the BOOST testing framework.
 
+#ifndef _WIN32
 void test_exit(Opm::InputErrorAction action)
 {
     pid_t pid = fork();
@@ -58,11 +61,16 @@ void test_exit(Opm::InputErrorAction action)
         std::exit(EXIT_FAILURE);
     }
 }
+#endif // !_WIN32
 
 } // Anonymous namespace
 
 int main()
 {
+#ifndef _WIN32
+    // This test uses fork() to verify exit-on-error behavior.
+    // On Windows, fork() is not available, so the test is skipped.
     test_exit(Opm::InputErrorAction::EXIT1);
     test_exit(Opm::InputErrorAction::DELAYED_EXIT1);
+#endif
 }

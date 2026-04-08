@@ -7,7 +7,11 @@ macro(check_for_avx2)
   include (CMakePushCheckState)
   include (CheckCSourceCompiles)
   cmake_push_check_state ()
-  set(CMAKE_REQUIRED_FLAGS -mavx2 ${CMAKE_REQUIRED_FLAGS})
+  if(MSVC)
+    set(CMAKE_REQUIRED_FLAGS /arch:AVX2 ${CMAKE_REQUIRED_FLAGS})
+  else()
+    set(CMAKE_REQUIRED_FLAGS -mavx2 ${CMAKE_REQUIRED_FLAGS})
+  endif()
   check_c_source_compiles("
 #include <immintrin.h>
 int main(){
@@ -16,7 +20,11 @@ int main(){
     AVX2_FLAGS_WORK)
     
   if(AVX2_FLAGS_WORK)
-    set(AVX2_FLAGS -mavx2)
+    if(MSVC)
+      set(AVX2_FLAGS /arch:AVX2)
+    else()
+      set(AVX2_FLAGS -mavx2)
+    endif()
     check_c_source_runs("
 #include <stdio.h>
 #include <immintrin.h>
