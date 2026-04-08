@@ -33,7 +33,7 @@
 
 
 // The static_assert does not compile with gcc 12 and earlier (or nvcc) when placed in the multiplexer calls below.
-#if (defined(__GNUC__) && (__GNUC__ < 13)) || defined(__CUDACC__)
+#if (defined(__GNUC__) && (__GNUC__ < 13)) || defined(__CUDACC__) || defined(_MSC_VER)
     #define STATIC_ASSERT_SATCURVE_MULTIPLEXER_UNLESS_GCC_LT_13 throw std::logic_error("Unhandled SatCurveMultiplexerApproach")
 #else
     #define STATIC_ASSERT_SATCURVE_MULTIPLEXER_UNLESS_GCC_LT_13 static_assert(false, "Unhandled SatCurveMultiplexerApproach")

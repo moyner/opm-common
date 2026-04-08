@@ -44,7 +44,11 @@ class Deck;
 class Parser;
 
 
-class __attribute__ ((visibility("hidden"))) PythonInterp {
+class
+#if defined(__GNUC__)
+__attribute__ ((visibility("hidden")))
+#endif
+PythonInterp {
 public:
     explicit PythonInterp(bool enable);
     bool exec(const std::string& python_code);

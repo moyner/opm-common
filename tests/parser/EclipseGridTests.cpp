@@ -52,7 +52,9 @@
 #include <numeric>
 #include <stdexcept>
 
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 
 #include "tests/WorkArea.hpp"
 
